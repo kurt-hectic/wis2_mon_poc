@@ -1,21 +1,22 @@
-# Amazon Web Services based WIS2 monitoring prototype 
-A proof of concept of a WIS2 monitoring system implemented in AWS and using CDK.
+# AWS based WIS2 data-processing / monitoring prototype 
+A proof of concept of a WIS2 data-processing / monitoring system implemented in AWS and using CDK.
 The PoC explores how AWS native (serverless) services can be leveraged to implement a flexible and parallel architecture than can process and analyse a variety of different datatypes exchanged in WIS2 at scale.
 
 ## WIS2
-WIS2 is a system used to exchange a multitude of meteorological data-formats in real-time. It is uses a pub/sub approach, based on the MQTT protocol.
+WIS2 is a system used to exchange meteorological information in different file data-formats in real-time. It is uses a pub/sub approach, based on the MQTT protocol.
 Data is exchanged by making the data available on a web-resource, tyically web-server, and exchanging a notification message on a set of Global Brokers. Users can obtain data of interest by subscribing to the corresponding MQTT topic and using a link embedded in the notification to download data. Global Caches cache core-data by subscribing, downloading data to a local cache and re-publishing a notification referencing the local cache.
 Currently in a pilot-phase, around 6 million messages are exchanged through WIS2 on a daily basis. Eventually upwards of 100 million messages may be exchanged in WIS2, bringing to the forefront the question how scalable cloud native design can be used to monitor / process data in WIS2.
+
+![High-level Architecture](docs/images/WIS2-architecture.PNG)
 
 ## Core architecture considerations
 The main considerations in the design of the prototype were scalability, flexiblity and reliability. The approach taken in this project is to leverage services for these purposes.
 ### scalability
-The system must handle upwards of 100 million messages per day. The system is built around AWS Kinesis Data Streams, with Lambda functions doing the heavy-lifting of downloading and processing data. Lambda functions scale well, and Kinesis can group events into batches to reduce both the number of independent Lambda invokations, and files written into S3. Other AWS services used to increase the scalability of the system are Elastic Container Service (ECS), Simple Queue Service (SQS) and Aurora serverless DB clusters.
-ECS can can spawn additional containers in case of increased workload, which can be combined with MQTT v5 shared connections to distribute workload. SQS prevents database connection exhaustion in case of bursts and Aurora serverless clusters also spawn additonal resources to horizontally and vertically scale the database.
+The system must handle upwards of 100 million messages per day. To achieve a high-throughput the design leverages scalable AWS services: Lambda functions to process data, Amazon Kinesis Data and Firehose Streams for stream processing, Elastic Container Service to host a bridge microservice responsible for ingesting data, S3 for buffering and an Aurora Serverless DB cluster to store information.
 ### flexibility
-The system must handle different data-formats, which are not all known at design-time. MQTT topics can be used to select data of interest and routed to Kinesis Data Streams with a data-specific Lambda processing functions. Lambda functions can be based on Docker, a convenient way to include domain-specific libraries to process meteorological formats.
+The system must handle different data-formats, which are not all known at design-time. MQTT topics can be used to select data of interest and routed to Kinesis Data Streams with a data-specific Lambda processing function. Lambda functions can be based on Docker, a convenient way to include domain-specific libraries to process custom file formats.
 ### reliability
-The system must monitor data in WIS2 and recover data exchanged during downtime and deal with internal and external error conditions, such as cache downtime, AWS internal processing errors or incorrect/incomplete data. MQTT QoS flags and client IDs can be used to have the external brokers to cache data exchanged during a possible downtime (subject to availability of memory and configuration). Subscribing to multiple Global Brokers provides redundancy at the cost of duplicate messages. Kinesis Data Streams keep records in the stream until all records have been sucesfully acknowledged. SQS keep records in the queue unless processing has been acknowledged, and have Dead Letter Queues to route errouneous data to. SQL transactions make sure data has been written to the database before removing data from the processing chain.
+The system must recover from internal and external error conditions, such as cache downtime, AWS internal processing errors, incorrect/incomplete data or system downtime.
 
 ## High-level architecture
 Following the data as it flows through the system, the architecture consists of the following components.
@@ -31,7 +32,7 @@ Following the data as it flows through the system, the architecture consists of 
 ## Detailed architecture
 
 ### Bridge
-Python code subscribing to one or more topics on a Global Broker using paqho-mqtt and re-publishing all WIS2 notifications messages to AWS IoT Core using awsiot. The implementation is a microservice and lightweight. The bridge receives and re-publishes notifications, after lightweight processing. Notification messages are parsed as JSON, and a metadata element with timing information and the original topic is inserted. Since AWS limits the depth of the topic hierarchy, static parts of the WIS2 topic hierarchy are removed and the topic depth limited to 8.
+Python code subscribing to one or more topics on a Global Broker using paqho-mqtt and re-publishing all WIS2 notifications messages to AWS IoT Core using awsiot. The implementation is a microservice and lightweight. The bridge receives and re-publishes notifications, after lightweight processing. Notification messages are parsed as JSON, and a metadata element with timing information and the original topic is inserted. Since AWS limits the depth of the topic hierarchy, static parts of the WIS2 topic hierarchy are removed and the topic depth limited to 8. MQTT QoS flag 1 is used to have the Global Brokers cache data exchanged during a possible system downtime. Subscribing to all Global Brokers provides additional redundancy at the cost of duplicate messages. 
 Custom metrics about the number of messages processed are sent to AWS Cloud Watch.
 The bridge code is published as a Docker image to AWS ECR and runs as Docker containers in AWS ECS as a Faregate Task once instance per Global Broker with instance specific metadata passed in as environment variables.     
 
@@ -51,13 +52,20 @@ Buffered data written into S3 is processed by a Lambda function which parses the
 ### Database
 An Aurora MySQL database is used to store processed data and make it available to downstram analytics tools. Each processing pipeline has its own table(s) into which data is inserted. A periodic Lambda job empties the database of records older than a set number of days.
 
-## Development platform
-The Amazon Cloud Development Toolkit (CdK) is used to represent the required infrastructure as code and to deploy an instance of the system. SSL certificates used to authenticate IoT Things are created locally with OpenSSL, because they cannot be generated by CdK. They are however managed and unloaded to AWS using CdK.
+## Error & Exception handling
+ * System downtime: Usage of MQTT QoS flags provides some safeguards against system downtime, provided Globlal Brokers allocate enough memory to buffering.
+ * Global Broker error: Since the system subscribes to all Global Brokers messages will be received from other Global Brokers.
+ * Global Cache downtime: Kinesis Data Streams keep records in the stream until all records have been sucesfully acknowledged. The Lambda processing funtion will return an error if data cannot be downloaded and retry until the maximum lifetime of a record in a Kinesis stream (24h) 
+ * Database insertion errors: SQS keep records in the queue unless processing has been acknowledged, and have Dead Letter Queues to route errouneous data to. SQL transactions make sure data has been written to the database before removing data from SQS queue.
+
+## Development platform (CDK)
+The Amazon Cloud Development Toolkit (CDK) is used to represent the required infrastructure as code and to deploy an instance of the system. SSL certificates used to authenticate IoT Things are created locally with OpenSSL, because they cannot be generated by CDK. They are however managed and unloaded to AWS using CDK.
 To manage the database schema are CdK plugin called resource-initializer is used, which creates or updates the database schema based on a schema file. Due to the size of the database, other approaches to schema management need to be used once the system is in operation and has accumulated more than a couple of million rows.
 
 ## future extensions
  * shared subscription for bridge: MQTT shared subscriptions could be used to increase the reliablily of the bridge component. For example, the bride could be deployed in multiple availability zones or accounts.
  * auto-scaling of bridge. ECS Fargate could dynamically scale the number of bridge containers. In conjunction with MQTT shared-connections this would allow to dynamicall respond to message increase that goes beyond what a static number of nodes can process.
+ * more structured approach to internal error handling for recoverable and non-recoverable errors
 
 ## discussion
  * Use of IoT Code / MQTT in the system. The ability to source messages from a central broker is nice, but adds significant cost. It is probably better to route data directly into Kinesis Data Streams from the bridges. This removes a costly component at the expense of slighly increased complexity in the bridge logic, which would have to take the decision into which Kinesis stream a message should be routed.
