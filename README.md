@@ -36,7 +36,7 @@ Python code subscribing to one or more topics on a Global Broker using paqho-mqt
 Custom metrics about the number of messages processed are sent to AWS Cloud Watch.
 The bridge code is published as a Docker image to AWS ECR and runs as Docker containers in AWS ECS as a Faregate Task once instance per Global Broker with instance specific metadata passed in as environment variables.     
 
-### AWS IoT Core
+### Broker (internal)
 AWS IoT Core (MQTT) is used to insert messages into the system. IOT Core authenticates connection from the bridge using AWS Signed SSL certificates associated to IoT Things which are authorized to publish. One IoT Core instance per AWS region is available by default. All data is thus available on the internal broker for consumption by the other system components.
 
 ### Data processing pipelines
