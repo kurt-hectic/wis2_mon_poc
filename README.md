@@ -20,12 +20,12 @@ The system must recover from internal and external error conditions, such as cac
 
 ## High-level architecture
 Following the data as it flows through the system, the architecture consists of the following components.
- * Bridge. A simple bridge microservice which subscribes to a Global Broker and re-publishes notifications into the AWS IoT core MQTT broker. The bridge is implemented using python using pahoo-mqtt and awsiot.  
- * AWS IoT Core. The gateway for data into the system and for data to be dispatched to the right processing pipeline by using WIS2 the topic hirarchy.
- * Data Processing pipelines. One pipeline per data-type monitored by the system. Data is inserted into a Kinesis Datastream via a MQTT topic rule. Data is then processed by a custom lambda function connected to the stream and which processes/decodes the data as needed. The processed data is written into a AWS Firehose stream, buffered and written out into S3 objects.
- * Database insertion queue. A lambda function reads data from S3 objects in response to S3 object creation events, and bulk-inserts records into the database. SQS queues buffer object creation events to achieve an even level of inserts into the database.
- * Database. Data is written into the database with each processing pipeline having its own database tables. Downstream analytics tools query the database to extract insights. 
- * Monitoring (internal). AWS Cloud Watch on-board and custom metrics monitor the flow of data through the system from bridge, internal broker, processing-pipelines and records written into the database.  
+ * ***Bridge***. A simple bridge microservice which subscribes to a Global Broker and re-publishes notifications into the AWS IoT core MQTT broker. The bridge is implemented using python using pahoo-mqtt and awsiot.  
+ * ***Broker (internal)***. AWS IoT Core serves as the gateway for data into the system and for data to be dispatched to the right processing pipeline by using WIS2 the topic hirarchy.
+ * ***Data Processing pipelines***. One pipeline per data-type monitored by the system. Data is inserted into a Kinesis Datastream via a MQTT topic rule. Data is then processed by a custom lambda function connected to the stream and which processes/decodes the data as needed. The processed data is written into a AWS Firehose stream, buffered and written out into S3 objects.
+ * ***Database insertion queue***. A lambda function reads data from S3 objects in response to S3 object creation events, and bulk-inserts records into the database. SQS queues buffer object creation events to achieve an even level of inserts into the database.
+ * ***Database***. Data is written into the database with each processing pipeline having its own database tables. Downstream analytics tools query the database to extract insights. 
+ * ***Monitoring (internal)***. AWS Cloud Watch on-board and custom metrics monitor the flow of data through the system from bridge, internal broker, processing-pipelines and records written into the database.  
 
  ![High-level Architecture](docs/images/high-level-architecture.PNG) 
 
@@ -84,16 +84,20 @@ To manage the database schema are CdK plugin called resource-initializer is used
  * checkout code
  * provide configuration and secrets in env_secrets.json
  * set default AWS accountId and Region env variables of configure wis2monitoring-stacks.ts
- * `cdk synth; cdk deploy``
+ * ```cdk synth; cdk deploy```
 
 ## certificates are created locally like this
-openssl genrsa -out privatekey.pem 2048
+```openssl genrsa -out privatekey.pem 2048
 openssl req -new -subj "/O=WMO/CN=AWS IoT Certificate" -key privatekey.pem -out cert.csr
+```
 
 ## testing
 
 ### CAPs
+```
 cdk synth ; sam build -t cdk.out\Wis2MonitoringStack.template.json ; sam local invoke CAPLambda -t cdk.out\Wis2MonitoringStack.template.json -e docker\lambda_swic\test\test_notification.json
-
+```
 ### notifications
+```
 cdk synth ; sam build -t cdk.out\Wis2MonitoringStack.template.json ; sam local invoke NotificationLambda -t cdk.out\Wis2MonitoringStack.template.json -e docker\lambda_notifications\test\test_notification.json
+```
