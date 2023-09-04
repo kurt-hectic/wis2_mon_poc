@@ -3,7 +3,7 @@ A proof of concept of a WIS2 data-processing / monitoring system implemented in 
 The PoC explores how AWS native (serverless) services can be leveraged to implement a flexible and parallel architecture than can process and analyse a variety of different datatypes exchanged in WIS2 at scale.
 
 ## WIS2
-WIS2 is a system used to exchange meteorological information in different file data-formats in real-time. It is uses a pub/sub approach, based on the MQTT protocol.
+WIS2 is a system used to exchange meteorological information in different data-formats in real-time. It is uses a pub/sub approach, based on the MQTT protocol.
 Data is exchanged by making the data available on a web-resource, tyically web-server, and exchanging a notification message on a set of Global Brokers. Users can obtain data of interest by subscribing to the corresponding MQTT topic and using a link embedded in the notification to download data. Global Caches cache core-data by subscribing, downloading data to a local cache and re-publishing a notification referencing the local cache.
 Currently in a pilot-phase, around 6 million messages are exchanged through WIS2 on a daily basis. Eventually upwards of 100 million messages may be exchanged in WIS2, bringing to the forefront the question how scalable cloud native design can be used to monitor / process data in WIS2.
 
