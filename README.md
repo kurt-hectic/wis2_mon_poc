@@ -52,6 +52,12 @@ Buffered data written into S3 is processed by a Lambda function which parses the
 ### Database
 An Aurora MySQL database is used to store processed data and make it available to downstram analytics tools. Each processing pipeline has its own table(s) into which data is inserted. A periodic Lambda job empties the database of records older than a set number of days.
 
+### Monitoring
+AWS cloudwatch metrics provided by AWS services, in addition to custom metrics published by the processing pipelines, give an overview of the flow of data through the system.
+
+ ![AWS Internal monitoring](docs/images/monitoring-dashboard.PNG)
+
+
 ## Error & Exception handling
  * System downtime: Usage of MQTT QoS flags provides some safeguards against system downtime, provided Globlal Brokers allocate enough memory to buffering.
  * Global Broker error: Since the system subscribes to all Global Brokers messages will be received from other Global Brokers.
