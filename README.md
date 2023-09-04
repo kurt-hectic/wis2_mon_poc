@@ -7,6 +7,7 @@ WIS2 is a system used to exchange a multitude of meteorological data-formats in 
 Data is exchanged by making the data available on a web-resource, tyically web-server, and exchanging a notification message on a set of Global Brokers. Users can obtain data of interest by subscribing to the corresponding MQTT topic and using a link embedded in the notification to download data. Global Caches cache core-data by subscribing, downloading data to a local cache and re-publishing a notification referencing the local cache.
 Currently in a pilot-phase, around 6 million messages are exchanged through WIS2 on a daily basis. Eventually upwards of 100 million messages may be exchanged in WIS2, bringing to the forefront the question how scalable cloud native design can be used to monitor / process data in WIS2.
 
+
 ## Core architecture considerations
 The main considerations in the design of the prototype were scalability, flexiblity and reliability. The approach taken in this project is to leverage services for these purposes.
 ### scalability
