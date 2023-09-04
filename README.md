@@ -78,16 +78,20 @@ To manage the database schema are CdK plugin called resource-initializer is used
  * checkout code
  * provide configuration and secrets in env_secrets.json
  * set default AWS accountId and Region env variables of configure wis2monitoring-stacks.ts
- * `cdk synth; cdk deploy``
+ * ```cdk synth; cdk deploy```
 
 ## certificates are created locally like this
-openssl genrsa -out privatekey.pem 2048
+```openssl genrsa -out privatekey.pem 2048
 openssl req -new -subj "/O=WMO/CN=AWS IoT Certificate" -key privatekey.pem -out cert.csr
+```
 
 ## testing
 
 ### CAPs
+```
 cdk synth ; sam build -t cdk.out\Wis2MonitoringStack.template.json ; sam local invoke CAPLambda -t cdk.out\Wis2MonitoringStack.template.json -e docker\lambda_swic\test\test_notification.json
-
+```
 ### notifications
+```
 cdk synth ; sam build -t cdk.out\Wis2MonitoringStack.template.json ; sam local invoke NotificationLambda -t cdk.out\Wis2MonitoringStack.template.json -e docker\lambda_notifications\test\test_notification.json
+```
