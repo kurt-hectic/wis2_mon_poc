@@ -24,7 +24,9 @@ Following the data as it flows through the system, the architecture consists of 
  * Data Processing pipelines. One pipeline per data-type monitored by the system. Data is inserted into a Kinesis Datastream via a MQTT topic rule. Data is then processed by a custom lambda function connected to the stream and which processes/decodes the data as needed. The processed data is written into a AWS Firehose stream, buffered and written out into S3 objects.
  * Database insertion queue. A lambda function reads data from S3 objects in response to S3 object creation events, and bulk-inserts records into the database. SQS queues buffer object creation events to achieve an even level of inserts into the database.
  * Database. Data is written into the database with each processing pipeline having its own database tables. Downstream analytics tools query the database to extract insights. 
- * Monitoring (internal). AWS Cloud Watch on-board and custom metrics monitor the flow of data through the system from bridge, internal broker, processing-pipelines and records written into the database.   
+ * Monitoring (internal). AWS Cloud Watch on-board and custom metrics monitor the flow of data through the system from bridge, internal broker, processing-pipelines and records written into the database.  
+
+ ![High-level Architecture](docs/images/high-level-architecture.PNG) 
 
 ## Detailed architecture
 
@@ -40,6 +42,8 @@ AWS IoT Core (MQTT) is used to insert messages into the system. IOT Core authent
 AWS Kinesis Data Streams are the core of the data-processing. One separate Data Stream is instanciated per type of data processed by the system. Kinesis Data Streams can route data from IoT Core with on-board means by suscribing using topic rules. For the PoC, pipelines for Surface BUFR observations, CAP Alerts and processing of all notifications were implemented.
 A Lambda function with custom code processes the data by reading batches of data from its Kinesis Data Steam, extracing required data and writing data out as JSON records into a Kinesis Firehose stream. Lambda functions are deployed as Lambda Container images using Docker images, which makes including third party libraries for processing meteorological data easy. An internal library implements common functions, such as downloading data from WIS2 or message validation, which are needed by multiple processing pipelines. As processing a WIS2 record takes around 1 second, including download of data from a Global Cache, Lambda functions need to run in parallel. A combination of number of shards in the Kinesis Data Stream, and Lambda function parallelization is used to achieve a high enough parallelization factor to process all messages in WIS2.  
 The Kinesis Firehose Stream, linked to a folder in a S3 bucket, writes out the JSON records in chunks, controlled by the buffer size and buffer window size parameters.
+
+ ![Detailed processing pipeline Architecture](docs/images/detail-pipelines.PNG)
 
 ### Database insertion queue
 Buffered data written into S3 is processed by a Lambda function which parses the data and writes it into the database. Each pipeline has its own JSON format and database table. The S3 foldername is used by the Lambda function to determine which JSON format and database table to use. Write events to S3 are inserted into SQS queues which are processed by the Lambda function. This prevents too many parallel Lambda functions exhausting the database in case of many chunks being written to S3 at the same time. 
