@@ -1,0 +1,25 @@
+FROM public.ecr.aws/lambda/python:3.8
+
+RUN yum install ca-certificates
+RUN update-ca-trust force-enable
+COPY lambda_notifications_new/kishou-go-jp.pem /etc/pki/ca-trust/source/anchors/
+RUN update-ca-trust extract
+
+
+
+# Install the function's dependencies using file requirements.txt
+# from your project folder.
+
+COPY lambda_notifications_new/requirements.txt  .
+RUN  pip3 install -r requirements.txt --target "${LAMBDA_TASK_ROOT}"
+
+# WIS2 monitoring library
+
+COPY wis2mon-lib /tmp/wis2mon-lib	
+RUN pip3 install /tmp/wis2mon-lib
+
+# Copy function code
+COPY lambda_notifications_new/app.py ${LAMBDA_TASK_ROOT}
+
+# Set the CMD to your handler (could also be done as a parameter override outside of the Dockerfile)
+CMD [ "app.lambda_handler" ] 

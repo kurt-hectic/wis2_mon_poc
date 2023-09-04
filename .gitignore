@@ -1,0 +1,23 @@
+*.js
+!jest.config.js
+*.d.ts
+node_modules
+
+# CDK asset staging directory
+.cdk.staging
+cdk.out
+
+resources/*.crt
+resources/*.pem
+resources/*.csr
+
+.aws-sam
+
+
+docker/wis2bridge/certs/cert.pem.crt
+docker/wis2bridge/certs/privatekey.pem
+docker/wis2bridge/certs/wis2_bridge_new.cert.pem
+docker/wis2bridge/certs/wis2_bridge_new.private.key
+docker/wis2bridge/certs/wis2_bridge_new.public.key
+
+env_secrets.json

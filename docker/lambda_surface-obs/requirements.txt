@@ -1,0 +1,6 @@
+requests<2.29.0
+jsonpath-ng
+pandas
+paho-mqtt
+boto3
+
